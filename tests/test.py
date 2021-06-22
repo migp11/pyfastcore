@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import pytest
 from cobra.flux_analysis import single_reaction_deletion
 from cobra.core import Reaction, Metabolite, Model
 from cobra.test import create_test_model
-from fastcore.fastcore import Fastcore
+from pyfastcore import Fastcore
 
 
 def create_tiny_net():
@@ -82,6 +83,8 @@ def test_textbook_model():
     cs_rxn_set = [r for r in cs_set if not r.startswith('EX')]
     print(len(cs_rxn_set) - 1)
     cs_model = fc_builder.build_context_specific_model()
+    sol = cs_model.optimize()
+    print(sol)
     result = single_reaction_deletion(cs_model)
     print(result)
 
