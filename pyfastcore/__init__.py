@@ -1,2 +1,2 @@
 from .pyfastcore import Fastcore
-from .utils import * set_medium
+from .utils import set_medium

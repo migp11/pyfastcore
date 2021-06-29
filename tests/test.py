@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import pytest
 from cobra.flux_analysis import single_reaction_deletion
 from cobra.core import Reaction, Metabolite, Model
 from cobra.test import create_test_model
