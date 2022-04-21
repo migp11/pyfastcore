@@ -14,7 +14,7 @@ setuptools.setup(
     description="A python-based implementation for the context-specific metabolic model extraction methods from Vlassis et al. 2014",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/migp11/fastcore",
+    url="https://github.com/migp11/pyfastcore",
     packages=find_packages(exclude=['examples', 'docs', 'tests']),
     classifiers=[
         "Programming Language :: Python :: 3",
