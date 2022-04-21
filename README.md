@@ -12,6 +12,45 @@ You can install pyfastcore using:
 of via pip:
 `pip install pyfastcore`
 
+## USAGE EXAMPLE
+```
+from cobra.test import create_test_model
+from pyfastcore import Fascore
+
+# Loading a toy model of E. coli from cobra.test package
+model = create_test_model('textbook')
+# Define the list of core reactions
+core_reactions = ['Biomass_Ecoli_core', 'ATPM']
+# Setting the penalty of exchange fluxes to 0
+penalties = {}
+for r in model.exchanges:
+    penalties[r.id] = 0
+
+# Creating a fastcore solver instnace
+fc_builder = Fastcore(model, core_reactions,
+                      penalties=penalties,
+                      default_penalty=10,
+                      debug_mode=True)
+
+# Rnunning fastcore
+fc_builder.fast_core()
+
+# checking the list of reaction in the consistent network found
+consistent_subnetwork = fc_builder.consistent_subnetwork
+print("Consistent subnetworksize set size", len(consistent_subnetwork))
+print("Context specific core:")
+print(consistent_subnetwork)
+
+# creating a cobra model for the consistent network found
+print(f"Building context-specific model for {model.id}")
+cs_model = fc_builder.build_context_specific_model()
+
+# Running and FBA using subnetwork model 
+print("Running FBA on CS-model")
+sol = cs_model.optimize()
+print(cs_model.summary())
+
+```
 
 
 ## Citation
