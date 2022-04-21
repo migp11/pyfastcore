@@ -46,9 +46,10 @@ class Fastcore(object):
 
 
         self.all_reactions = frozenset({r.id for r in model.reactions})
-        core_reactions = list(core_reactions)
+        
         assert len(core_reactions) > 0
-
+        
+        core_reactions = list(core_reactions)
         if hasattr(core_reactions[0], 'id'):
             core_reactions = [r.id for r in core_reactions]
 
