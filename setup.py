@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyfastcore",
-    version="0.0.1",
+    version="0.0.2",
     author="Miguel Ponce de Leon",
     author_email="miguel.ponce@gbsc.es",
     description="A python-based implementation for the context-specific metabolic model extraction methods from Vlassis et al. 2014",
