@@ -38,9 +38,6 @@ class Fastcore(object):
             self._model = model.copy()
         else:
             self._model = model
-
-
-
         
         if debug_mode:
             logging.basicConfig(level=logging.INFO)
@@ -49,7 +46,7 @@ class Fastcore(object):
 
 
         self.all_reactions = frozenset({r.id for r in model.reactions})
-
+        core_reactions = list(core_reactions)
         assert len(core_reactions) > 0
 
         if hasattr(core_reactions[0], 'id'):
