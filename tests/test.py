@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-
-from cobra.flux_analysis import single_reaction_deletion
 from cobra.core import Reaction, Metabolite, Model
 from cobra.test import create_test_model
+from cobra.flux_analysis import single_reaction_deletion
+from cobra.flux_analysis import find_blocked_reactions
 from pyfastcore import Fastcore
 
 
@@ -27,7 +27,7 @@ def create_tiny_net():
 
     to_add = []
     for m in metabolites:
-        met = Metabolite(m)
+        met = Metabolite(m, name=m, charge=0, compartment='c')
         to_add.append(met)
 
     model.add_metabolites(to_add)
@@ -45,6 +45,8 @@ def create_tiny_net():
     return model
 
 def test_tiny_net_model():
+    print("===========================================================")
+    print("Testing pyfastcore using tiny network model")
     model = create_tiny_net()
     for r in model.reactions:
         print(r.id, r.reaction)
@@ -54,17 +56,16 @@ def test_tiny_net_model():
                           debug_mode=True)
 
     fc_builder.fast_core()
-    core = fc_builder.get_context_specific_set()
-    print("Consistent reaction set size", len(core))
+    consistent_subnetwork = fc_builder.consistent_subnetwork
+    print("Consistent reaction set size", len(consistent_subnetwork))
     print("Context specific core:")
-    cs_set = fc_builder.get_context_specific_set()
-    print(len(cs_set))
-    print(cs_set)
+    print(consistent_subnetwork)
 
 def test_textbook_model():
+    print("===========================================================")
+    print("Testing pyfastcore using E. coli core (textbook) model")
     model = create_test_model('textbook')
-    model.reactions.ATPM.lower_bound = 0
-    core_reactions = ['Biomass_Ecoli_core']
+    core_reactions = ['Biomass_Ecoli_core', 'ATPM']
     penalties = {r: 0 for r in core_reactions}
     for r in model.exchanges:
         penalties[r.id] = 0
@@ -75,29 +76,33 @@ def test_textbook_model():
                           debug_mode=True)
 
     fc_builder.fast_core()
-    core = fc_builder.get_context_specific_set()
-    print("Consistent reaction set size", len(core))
+    consistent_subnetwork = fc_builder.consistent_subnetwork
+    print("Consistent subnetworksize set size", len(consistent_subnetwork))
     print("Context specific core:")
-    cs_set = fc_builder.get_context_specific_set()
-    cs_rxn_set = [r for r in cs_set if not r.startswith('EX')]
-    print(len(cs_rxn_set) - 1)
+    print(consistent_subnetwork)
+
+    print(f"Building context-specific model for {model.id}")
     cs_model = fc_builder.build_context_specific_model()
+    print("Running FBA on CS-model")
     sol = cs_model.optimize()
-    print(sol)
-    result = single_reaction_deletion(cs_model)
-    print(result)
+    print(cs_model.summary())
+    print("Running single reaction deletions")
+    ko_result = single_reaction_deletion(cs_model)
+    ess_reactions = ko_result[ko_result.growth < sol.objective_value * 0.1].index
+    print(f"|Essential reactions found|={len(ess_reactions)}")
 
 def test_fastcc():
     model = create_test_model('textbook')
-
     model.reactions.ATPM.lower_bound = 0
     model.reactions.EX_glc__D_e.lower_bound = -10000
     model.reactions.EX_o2_e.lower_bound = -10000
-    blocked = Fastcore.fast_find_blocked(model)
-    print(blocked)
-    from cobra.flux_analysis import find_blocked_reactions
-    blocked = find_blocked_reactions(model)
-    print(blocked)
+    print("===========================================================")
+    print("Testing fastcc alforithm using E. coli core (textbook) model.", end=" ")
+    blocked_fcc = Fastcore.fast_find_blocked(model)
+    blocked_fva = find_blocked_reactions(model)
+    assert len( set(blocked_fcc) - set(blocked_fva) ) == 0
+    assert len( set(blocked_fva) - set(blocked_fcc) ) == 0
+    print("Ok!")    
 
 def main():
     test_textbook_model()

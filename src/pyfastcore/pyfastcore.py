@@ -17,7 +17,7 @@ class Fastcore(object):
 
     def __init__(self, model, core_reactions, penalties=None, epsilon=1e-4, scaling_factor=1e5,
                  default_penalty=10.0, check_consistency=True, debug_mode=False, tolerance=1e-7,
-                 copy_model=True, info_level=logging.INFO, **kwargs):
+                 copy_model=True, abs_flux_bound=10000, info_level=logging.INFO, **kwargs):
 
         """
         Parameters
@@ -65,15 +65,15 @@ class Fastcore(object):
         self._tolerance = tolerance
         self._epsilon = epsilon
         self._scaling_factor = scaling_factor
+        self._abs_flux_bound = abs_flux_bound
         self.LP7 = None
         self.LP10 = None
         self._debug_mode = debug_mode
         
         self.blocked_reactions = frozenset()
         self.gap_metabolites = frozenset()
-        self._consistent_sets = None
+        self._consistent_sets = []
 
-        logging.info("===========================================================")
         logging.info("Initializing Fastcore Builder using")
         logging.info("Model: %s" % model.id)
         logging.info("- Nº of reactions: %i" % len(self.all_reactions))
@@ -85,25 +85,15 @@ class Fastcore(object):
             if not self.is_consistent:
                 self.__prune_inconsistencies()
                 logging.warning(" Warning, original model contains inconsistent reactions")
-                logging.warning("- Nº of blocked reactions: %i" % len(self.blocked_reactions))
-                logging.warning("- Nº of gap metabolites: %i" % len(self.gap_metabolites))
-                logging.warning("- Pruning model inconsistencies")
-                logging.warning("- Nº of reactions after pruning: %i" % len(self.consistent_reactions))
-                logging.warning("- Nº of core reactions after pruning: %i\n" % len(self.consistent_core_reactions))
+                logging.warning(f" |Blocked reactions|={len(self.blocked_reactions)}")
+                logging.warning(f" |Gap metabolites|={len(self.gap_metabolites)}")
+                logging.warning(f"- Pruning model inconsistencies")
+                logging.warning(f" |Reactions after pruning|={len(self.consistent_reactions)}")
+                logging.warning(f" |Core reactions after pruning|={len(self.consistent_core_reactions)}")
 
         self._original_bounds = {}
         self._bounds = {}
-        for r in self._model.reactions:
-            self._original_bounds[r.id] = r.bounds
-            if r.lower_bound < 0:
-                r.lower_bound = -999999
-            else:
-                r.lower_bound = 0
-            if r.upper_bound > 0:
-                r.upper_bound = 999999
-            else:
-                r.upper_bound = 0
-            self._bounds[r.id] = r.bounds
+        self.__relax_reaction_bounds()
 
         logging.info("Initializing LP7 and LP10")
         self.LP7 = Fastcore.create_optlang_lp7(self._model,
@@ -112,10 +102,9 @@ class Fastcore(object):
                                                )
 
         self.LP10 = Fastcore.create_optlang_lp10(self._model,
-                                                 self.penalties,
+                                                 self._penalties,
                                                  scaling_factor=scaling_factor)
         logging.info("Fastcore builder ready!")
-        logging.info("===========================================================")
 
     @property
     def tolerance(self):
@@ -148,6 +137,14 @@ class Fastcore(object):
     @property
     def consistent_non_core_reactions(self):
         return self.consistent_reactions - self.core_reactions
+    
+    @property
+    def consistent_subnetwork(self):
+        if len(self._consistent_sets) > 0:
+            return self._consistent_sets[-1]
+        else:
+            logging.warning("Before getting a consistent network fast_core method should bu run")
+            return None
 
     # Static methods
 
@@ -426,6 +423,20 @@ class Fastcore(object):
             gap_metabolites = [self._model.metabolites.get_by_id(m) for m in self.gap_metabolites]
             self._model.remove_metabolites(gap_metabolites)
 
+    def __relax_reaction_bounds(self):
+        logging.info("- Relaxing reaction bounds to avoid infeasibility problems when running fastcore")
+        for r in self._model.reactions:
+            self._original_bounds[r.id] = r.bounds
+            if r.lower_bound < 0:
+                r.lower_bound = -self._abs_flux_bound
+            else:
+                r.lower_bound = 0
+            if r.upper_bound > 0:
+                r.upper_bound = self._abs_flux_bound
+            else:
+                r.upper_bound = 0
+            self._bounds[r.id] = r.bounds
+
     def __find_sparse_mode(self, core_reactions, non_core_reactions):
 
         assert len(core_reactions & non_core_reactions) == 0
@@ -446,7 +457,7 @@ class Fastcore(object):
         if len(active_core) == 0:
             return set()
 
-        Fastcore.update_optlang_lp10(self.LP10, active_core, self.penalties, self._bounds,
+        Fastcore.update_optlang_lp10(self.LP10, active_core, self._penalties, self._bounds,
                                      scaling_factor=self.scaling_factor, epsilon=self.epsilon)
         self.LP10.optimize()
         if self.LP10.status == 'infeasible':
@@ -490,8 +501,8 @@ class Fastcore(object):
         core_rxns -= consistent_subnet
         self._consistent_sets.append(consistent_subnet)
         if self._debug_mode:
-            logging.info("|Consistent Subnet|=", len(consistent_subnet))
-            logging.info("|Core Reactions|=", len(core_rxns))
+            logging.info(f"|Consistent Subnet|={len(consistent_subnet)}")
+            logging.info(f"|Core Reactions|={len(core_rxns)}")
 
         core_rxns_subset = {}
         flipped = False
@@ -499,7 +510,7 @@ class Fastcore(object):
         while core_rxns:
             non_core_rxns -= consistent_subnet
             for r in consistent_subnet:
-                self.penalties[r] = 0
+                self._penalties[r] = 0
 
             if singleton:
                 rxn = sorted(core_rxns)[0]
@@ -510,7 +521,7 @@ class Fastcore(object):
             consistent_subnet |= sparse_mode
 
             if self._debug_mode:
-                logging.info("|Consistent Subnet|=", len(consistent_subnet))
+                logging.info(f"|Current consistent Subnet|={len(consistent_subnet)}")
 
             if core_rxns & consistent_subnet:
                 self._consistent_sets.append(consistent_subnet)
@@ -518,7 +529,7 @@ class Fastcore(object):
                 flipped = False
                 singleton = False
                 if self._debug_mode:
-                    logging.info("|Core Reactions|=", len(core_rxns))
+                    logging.info(f"|Remaning core Reactions|={len(core_rxns)}")
             else:
                 if flipped:
                     flipped = False
@@ -538,18 +549,12 @@ class Fastcore(object):
                     Fastcore.flip_variable(rxn_id, self.LP10, reactions_dict[rxn_id])
 
         self._consistent_sets.append(consistent_subnet)
-        logging.infoint("Consistent sub-network found!")
-        logging.info("- Nº of reactions in consistent sub-network %i " % len(self._consistent_sets[-1]))
+        logging.info("Consistent sub-network found!")
+        logging.info(f"|Consistent sub-network|={len(self._consistent_sets[-1])}")
 
-    def get_context_specific_set(self):
-        if self._consistent_sets:
-            return self._consistent_sets[-1]
-        else:
-            logging.warning("Before getting a consistent network fast_core method should bu run")
-            return None
 
     def build_context_specific_model(self):
-        cs_rxns = self.get_context_specific_set()
+        cs_rxns = self.consistent_subnetwork
         if cs_rxns:
             cs_model = self._model.copy()
             to_remove = []
@@ -563,7 +568,7 @@ class Fastcore(object):
             cs_model.remove_metabolites([m for m in cs_model.metabolites
                                     if len(m.reactions) == 0])
             for r in cs_model.reactions:
-                r.bounds = self._bounds[r.id]
+                r.bounds = self._original_bounds[r.id]
         else:
             cs_model = None
 
