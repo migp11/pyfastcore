@@ -17,7 +17,7 @@ class Fastcore(object):
 
     def __init__(self, model, core_reactions, penalties=None, epsilon=1e-4, scaling_factor=1e5,
                  default_penalty=10.0, check_consistency=True, debug_mode=False, tolerance=1e-7,
-                 copy_model=True, abs_flux_bound=10000, info_level=logging.INFO, **kwargs):
+                 copy_model=True, abs_flux_bound=10000, info_level=logging.WARNING, **kwargs):
 
         """
         Parameters
@@ -41,7 +41,12 @@ class Fastcore(object):
 
 
 
-        logging.basicConfig(level=info_level)
+        
+        if debug_mode:
+            logging.basicConfig(level=logging.INFO)
+        else:
+            logging.basicConfig(level=info_level)
+
 
         self.all_reactions = frozenset({r.id for r in model.reactions})
 
