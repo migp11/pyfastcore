@@ -15,7 +15,7 @@ of via pip:
 ## USAGE EXAMPLE
 ```
 from cobra.test import create_test_model
-from pyfastcore import Fascore
+from pyfastcore import Fastcore
 
 # Loading a toy model of E. coli from cobra.test package
 model = create_test_model('textbook')
