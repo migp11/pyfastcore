@@ -77,6 +77,10 @@ class Fastcore(object):
         self.gap_metabolites = frozenset()
         self._consistent_sets = []
 
+        self._original_bounds = {}
+        self._bounds = {}
+        self.__relax_reaction_bounds()
+
         logging.info("Initializing Fastcore Builder using")
         logging.info("Model: %s" % model.id)
         logging.info("- Nº of reactions: %i" % len(self.all_reactions))
@@ -94,9 +98,7 @@ class Fastcore(object):
                 logging.warning(f" |Reactions after pruning|={len(self.consistent_reactions)}")
                 logging.warning(f" |Core reactions after pruning|={len(self.consistent_core_reactions)}")
 
-        self._original_bounds = {}
-        self._bounds = {}
-        self.__relax_reaction_bounds()
+
 
         logging.info("Initializing LP7 and LP10")
         self.LP7 = Fastcore.create_optlang_lp7(self._model,
