@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyfastcore",
-    version="0.0.3",
+    version="0.0.6",
     author = "Miguel Ponce-de-Leon",
     author_email = "miguelponcedeleon@gmail.com",
     maintainer = "Miguel Ponce-de-Leon",
@@ -24,5 +24,5 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"   ),
     package_dir={"": "src"},
     python_requires='>=3.6',
-    install_requires=['numpy', 'cobra>=0.24.0', 'corda', 'pyfastcore', 'networkx', 'pandas'],
+    install_requires=['numpy', 'cobra>=0.25.0']
 )

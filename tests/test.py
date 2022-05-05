@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from cobra.core import Reaction, Metabolite, Model
-from cobra.test import create_test_model
+from cobra.io import load_model
 from cobra.flux_analysis import single_reaction_deletion
 from cobra.flux_analysis import find_blocked_reactions
 from pyfastcore import Fastcore
@@ -64,7 +64,7 @@ def test_tiny_net_model():
 def test_textbook_model():
     print("===========================================================")
     print("Testing pyfastcore using E. coli core (textbook) model")
-    model = create_test_model('textbook')
+    model = load_model('textbook')
     core_reactions = ['Biomass_Ecoli_core', 'ATPM']
     penalties = {r: 0 for r in core_reactions}
     for r in model.exchanges:
@@ -92,7 +92,7 @@ def test_textbook_model():
     print(f"|Essential reactions found|={len(ess_reactions)}")
 
 def test_fastcc():
-    model = create_test_model('textbook')
+    model = load_model('textbook')
     model.reactions.ATPM.lower_bound = 0
     model.reactions.EX_glc__D_e.lower_bound = -10000
     model.reactions.EX_o2_e.lower_bound = -10000
